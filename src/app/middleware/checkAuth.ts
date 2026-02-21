@@ -70,6 +70,17 @@ export const checkAuth =
               "Forbidden access! you do not have permission to access this resource.",
             );
           }
+
+          req.user = {
+            userId: user.id,
+            role: user.role,
+            email: user.email,
+          };
+        } else {
+          throw new AppError(
+            status.UNAUTHORIZED,
+            "Unauthorized access! Session not found or expired.",
+          );
         }
       }
 
@@ -104,6 +115,7 @@ export const checkAuth =
           "Forbidden access! You do not have permission to access this resource.",
         );
       }
+
       next();
     } catch (error) {
       next(error);

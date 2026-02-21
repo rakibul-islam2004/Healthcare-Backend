@@ -18,7 +18,7 @@ model Specialty {
 }
 
 model DoctorSpecialty {
-    id          String @id @default(uuid())
+    id          String @id @default(uuid(7))
     doctorId    String
     specialtyId String
 
