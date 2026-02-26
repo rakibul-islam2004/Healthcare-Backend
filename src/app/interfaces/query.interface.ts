@@ -43,3 +43,25 @@ export interface IQueryConfig {
   searchableFields?: string[];
   filterableFields?: string[];
 }
+
+export interface PrismaStringFilter {
+  contains?: string;
+  startWith?: string;
+  endWith?: string;
+  mode?: "insensitive" | "default";
+  equals?: string;
+  in?: string[];
+  notIn?: string[];
+  lt?: string;
+  lte?: string;
+  gt?: string;
+  gte?: string;
+  not?: PrismaStringFilter | string;
+}
+
+export interface PrismaWhereConditions {
+  OR?: Record<string, unknown>[];
+  AND?: Record<string, unknown>[];
+  NOT?: Record<string, unknown>[];
+  [key: string]: unknown;
+}
