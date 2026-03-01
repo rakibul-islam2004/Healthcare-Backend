@@ -39,6 +39,7 @@ export class QueryBuilder<
     this.countQuery = {
       where: {},
     };
+    this.selectFields = {};
   }
 
   search(): this {
@@ -234,6 +235,75 @@ export class QueryBuilder<
       queryWhere[key] = this.parseFilterValue(value);
       countQueryWhere[key] = this.parseFilterValue(value);
     });
+    return this;
+  }
+
+  paginate(): this {
+    const page = Number(this.queryParams.page) || 1;
+    const limit = Number(this.queryParams.limit) || 10;
+
+    this.page = page;
+    this.limit = limit;
+    this.skip = (page - 1) * limit;
+
+    this.query.skip = this.skip;
+    this.query.take = this.limit;
+
+    return this;
+  }
+
+  sort(): this {
+    const sortBy = this.queryParams.sortBy || "createAt";
+    const sortOrder = this.queryParams.sortOrder === "asc" ? "asc" : "desc";
+
+    this.sortBy = sortBy;
+    this.sortOrder = sortOrder;
+
+    if (sortBy.includes(".")) {
+      const parts = sortBy.split(".");
+
+      if (parts.length === 2) {
+        const [relation, nestedField] = parts;
+
+        this.query.orderBy = {
+          [relation]: {
+            [nestedField]: sortOrder,
+          },
+        };
+      } else if (parts.length === 3) {
+        const [relation, nestedRelation, nestedField] = parts;
+
+        this.query.orderBy = {
+          [relation]: {
+            [nestedRelation]: {
+              [nestedField]: sortOrder,
+            },
+          },
+        };
+      } else {
+        this.query.orderBy = {
+          [sortBy]: sortOrder,
+        };
+      }
+    }
+
+    return this;
+  }
+
+  fields(): this {
+    const fieldsParam = this.queryParams.fields;
+    if (fieldsParam && typeof fieldsParam === "string") {
+      const fieldsArray = fieldsParam?.split(",").map((field) => field.trim());
+
+      fieldsArray?.forEach((field) => {
+        if (this.selectFields) {
+          this.selectFields[field] = true;
+        }
+      });
+      this.query.select = this.selectFields;
+
+      delete this.query.include;
+    }
     return this;
   }
 
