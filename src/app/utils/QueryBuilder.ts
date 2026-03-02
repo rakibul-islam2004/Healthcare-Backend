@@ -1,6 +1,6 @@
 import {
   IQueryConfig,
-  IqueryParams,
+  IQueryParams,
   IQueryResult,
   PrismaCountArgs,
   PrismaFindManyArgs,
@@ -27,7 +27,7 @@ export class QueryBuilder<
 
   constructor(
     private model: prismaModelDelegate,
-    private queryParams: IqueryParams,
+    private queryParams: IQueryParams,
     private config: IQueryConfig,
   ) {
     this.query = {

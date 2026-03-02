@@ -28,7 +28,7 @@ export interface prismaModelDelegate {
   count(args?: any): Promise<number>;
 }
 
-export interface IqueryParams {
+export interface IQueryParams {
   searchTerm?: string;
   page?: string;
   limit?: string;
