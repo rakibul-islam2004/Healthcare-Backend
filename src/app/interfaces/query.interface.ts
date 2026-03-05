@@ -23,7 +23,7 @@ export interface PrismaCountArgs {
   [key: string]: unknown;
 }
 
-export interface prismaModelDelegate {
+export interface PrismaModelDelegate {
   findMany(args?: any): Promise<any[]>;
   count(args?: any): Promise<number>;
 }
@@ -46,8 +46,8 @@ export interface IQueryConfig {
 
 export interface PrismaStringFilter {
   contains?: string;
-  startWith?: string;
-  endWith?: string;
+  startsWith?: string;
+  endsWith?: string;
   mode?: "insensitive" | "default";
   equals?: string;
   in?: string[];
@@ -81,11 +81,8 @@ export interface IQueryResult<T> {
   data: T[];
   meta: {
     page: number;
-    meta: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+    limit: number;
+    total: number;
+    totalPages: number;
   };
 }

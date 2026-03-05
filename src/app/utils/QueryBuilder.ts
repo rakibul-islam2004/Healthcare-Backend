@@ -4,13 +4,13 @@ import {
   IQueryResult,
   PrismaCountArgs,
   PrismaFindManyArgs,
-  prismaModelDelegate,
+  PrismaModelDelegate,
   PrismaNumberFilter,
   PrismaStringFilter,
   PrismaWhereConditions,
 } from "../interfaces/query.interface";
 
-// T = Model type
+// T = Model Type
 export class QueryBuilder<
   T,
   TWhereInput = Record<string, unknown>,
@@ -26,9 +26,9 @@ export class QueryBuilder<
   private selectFields: Record<string, boolean> | undefined;
 
   constructor(
-    private model: prismaModelDelegate,
+    private model: PrismaModelDelegate,
     private queryParams: IQueryParams,
-    private config: IQueryConfig,
+    private config: IQueryConfig = {},
   ) {
     this.query = {
       where: {},
@@ -40,7 +40,6 @@ export class QueryBuilder<
     this.countQuery = {
       where: {},
     };
-    this.selectFields = {};
   }
 
   search(): this {
@@ -60,6 +59,7 @@ export class QueryBuilder<
                 contains: searchTerm,
                 mode: "insensitive" as const,
               };
+
               return {
                 [relation]: {
                   [nestedField]: stringFilter,
@@ -75,8 +75,10 @@ export class QueryBuilder<
 
               return {
                 [relation]: {
-                  [nestedRelation]: {
-                    [nestedField]: stringFilter,
+                  some: {
+                    [nestedRelation]: {
+                      [nestedField]: stringFilter,
+                    },
                   },
                 },
               };
@@ -254,11 +256,13 @@ export class QueryBuilder<
   }
 
   sort(): this {
-    const sortBy = this.queryParams.sortBy || "createAt";
+    const sortBy = this.queryParams.sortBy || "createdAt";
     const sortOrder = this.queryParams.sortOrder === "asc" ? "asc" : "desc";
 
     this.sortBy = sortBy;
     this.sortOrder = sortOrder;
+
+    // /doctors?sortBy=user.name&sortOrder=asc => orderBy: { user: { name: 'asc' } }
 
     if (sortBy.includes(".")) {
       const parts = sortBy.split(".");
@@ -286,22 +290,33 @@ export class QueryBuilder<
           [sortBy]: sortOrder,
         };
       }
+    } else {
+      this.query.orderBy = {
+        [sortBy]: sortOrder,
+      };
     }
-
     return this;
   }
 
   fields(): this {
     const fieldsParam = this.queryParams.fields;
+
+
+    //no nested field selection for now, only direct fields
     if (fieldsParam && typeof fieldsParam === "string") {
       const fieldsArray = fieldsParam?.split(",").map((field) => field.trim());
+      this.selectFields = {};
 
       fieldsArray?.forEach((field) => {
         if (this.selectFields) {
           this.selectFields[field] = true;
         }
       });
-      this.query.select = this.selectFields;
+
+      this.query.select = this.selectFields as Record<
+        string,
+        boolean | Record<string, unknown>
+      >;
 
       delete this.query.include;
     }
@@ -313,7 +328,11 @@ export class QueryBuilder<
       return this;
     }
 
-    this.query.include = { ...this.query.include, ...relation };
+    this.query.include = {
+      ...(this.query.include as Record<string, unknown>),
+      ...(relation as Record<string, unknown>),
+    };
+
     return this;
   }
 
@@ -324,13 +343,16 @@ export class QueryBuilder<
     if (this.selectFields) {
       return this;
     }
+
     const result: Record<string, unknown> = {};
+
     defaultInclude?.forEach((field) => {
       if (includeConfig[field]) {
         result[field] = includeConfig[field];
       }
     });
-    const includeParam = this.queryParams.includes as string | undefined;
+
+    const includeParam = this.queryParams.include as string | undefined;
 
     if (includeParam && typeof includeParam === "string") {
       const requestedRelations = includeParam
@@ -344,7 +366,11 @@ export class QueryBuilder<
       });
     }
 
-    this.query.include = { ...this.query.include, ...result };
+    this.query.include = {
+      ...(this.query.include as Record<string, unknown>),
+      ...result,
+    };
+
     return this;
   }
 
@@ -373,6 +399,7 @@ export class QueryBuilder<
     ]);
 
     const totalPages = Math.ceil(total / this.limit);
+
     return {
       data: data as T[],
       meta: {
@@ -418,6 +445,8 @@ export class QueryBuilder<
         } else {
           result[key] = source[key];
         }
+      } else {
+        result[key] = source[key];
       }
     }
     return result;
@@ -430,9 +459,11 @@ export class QueryBuilder<
     if (value === "false") {
       return false;
     }
+
     if (typeof value === "string" && !isNaN(Number(value)) && value != "") {
       return Number(value);
     }
+
     if (Array.isArray(value)) {
       return { in: value.map((item) => this.parseFilterValue(item)) };
     }
@@ -445,6 +476,7 @@ export class QueryBuilder<
   ): PrismaNumberFilter | PrismaStringFilter | Record<string, unknown> {
     const rangeQuery: Record<string, string | number | (string | number)[]> =
       {};
+
     Object.keys(value).forEach((operator) => {
       const operatorValue = value[operator];
 
@@ -452,6 +484,7 @@ export class QueryBuilder<
         typeof operatorValue === "string" && !isNaN(Number(operatorValue))
           ? Number(operatorValue)
           : operatorValue;
+
       switch (operator) {
         case "lt":
         case "lte":
@@ -464,6 +497,7 @@ export class QueryBuilder<
         case "endsWith":
           rangeQuery[operator] = parsedValue;
           break;
+
         case "in":
         case "notIn":
           if (Array.isArray(operatorValue)) {
