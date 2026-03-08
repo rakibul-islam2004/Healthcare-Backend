@@ -2,6 +2,9 @@ import { v7 as uuidv7 } from "uuid";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { IBookAppointmentPayload } from "./appointment.interface";
+import { AppointmentStatus, Role } from "../../../generated/prisma/enums";
+import status from "http-status";
+import AppError from "../../errorHelpers/AppError";
 
 const bookAppointment = async (
   payload: IBookAppointmentPayload,
@@ -110,7 +113,76 @@ const getMyAppointments = async (user: IRequestUser) => {
   return appointments;
 };
 
+const changeAppointmentStatus = async (
+  appointmentId: string,
+  appointmentStatus: AppointmentStatus,
+  user: IRequestUser,
+) => {
+  const appointmentData = await prisma.appointment.findUniqueOrThrow({
+    where: { id: appointmentId },
+    include: {
+      doctor: true,
+      patient: true,
+    },
+  });
+
+  if (
+    appointmentData.status === AppointmentStatus.COMPLETED ||
+    appointmentData.status === AppointmentStatus.CANCELED
+  ) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Completed or Cancelled appointments cannot be updated",
+    );
+  }
+
+  if (user?.role === Role.DOCTOR) {
+    if (user?.email !== appointmentData.doctor.email) {
+      throw new AppError(status.FORBIDDEN, "This is not your appointment");
+    }
+
+    const allowedTransitions: AppointmentStatus[] = [
+      AppointmentStatus.INPROGRESS,
+      AppointmentStatus.COMPLETED,
+      AppointmentStatus.CANCELED,
+    ];
+
+    if (!allowedTransitions.includes(appointmentStatus)) {
+      throw new AppError(status.BAD_REQUEST, "Invalid status transition");
+    }
+  }
+
+  if (user?.role === Role.PATIENT) {
+    if (user?.email !== appointmentData.patient.email) {
+      throw new AppError(status.FORBIDDEN, "This is not your appointment");
+    }
+
+    if (
+      appointmentStatus === AppointmentStatus.CANCELED &&
+      appointmentData.status !== AppointmentStatus.SCHEDULED
+    ) {
+      throw new AppError(
+        status.BAD_REQUEST,
+        "Only scheduled appointments can be cancelled",
+      );
+    }
+
+    if (appointmentStatus !== AppointmentStatus.CANCELED) {
+      throw new AppError(
+        status.BAD_REQUEST,
+        "Patients are only allowed to cancel appointments",
+      );
+    }
+  }
+
+  return await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: appointmentStatus },
+  });
+};
+
 export const AppointmentService = {
   bookAppointment,
   getMyAppointments,
+  changeAppointmentStatus,
 };
