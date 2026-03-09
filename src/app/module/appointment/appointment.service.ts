@@ -181,8 +181,73 @@ const changeAppointmentStatus = async (
   });
 };
 
+const getMySingleAppointment = async (
+  appointmentId: string,
+  user: IRequestUser,
+) => {
+  const patientData = await prisma.patient.findUnique({
+    where: { email: user?.email },
+  });
+
+  if (patientData) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        patientId: patientData.id,
+      },
+      include: {
+        doctor: true,
+        schedule: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new AppError(status.NOT_FOUND, "Appointment not found");
+    }
+
+    return appointment;
+  }
+
+  const doctorData = await prisma.doctor.findUnique({
+    where: { email: user?.email },
+  });
+
+  if (doctorData) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        doctorId: doctorData.id,
+      },
+      include: {
+        patient: true,
+        schedule: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new AppError(status.NOT_FOUND, "Appointment not found");
+    }
+
+    return appointment;
+  }
+
+  throw new Error("User not found");
+};
+
+const getAllAppointments = async () => {
+  return await prisma.appointment.findMany({
+    include: {
+      doctor: true,
+      patient: true,
+      schedule: true,
+    },
+  });
+};
+
 export const AppointmentService = {
   bookAppointment,
   getMyAppointments,
   changeAppointmentStatus,
+  getMySingleAppointment,
+  getAllAppointments,
 };
